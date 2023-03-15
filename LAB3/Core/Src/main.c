@@ -49,10 +49,11 @@ UART_HandleTypeDef huart2;
 uint32_t InputBuffer[IC_BUFFER_SIZE];
 float averageInput;
 float MotorReadRPM;
-uint32_t MotorSetDuty;
-uint32_t MotorSetRPM;
-uint8_t MotorControlEnable = 0;
+uint32_t MotorSetDuty = 50;
+uint32_t MotorSetRPM = 1;
+uint32_t MotorControlEnable = 0;
 uint32_t duty = 500;
+uint32_t timeset = 100;
 
 /* USER CODE END PV */
 
@@ -135,15 +136,38 @@ int main(void)
 	  switch(MotorControlEnable)
 	  {
 	  case 0:
-		  duty = (MotorSetDuty-1)*10;
+		  duty = (MotorSetDuty*10)-1;
 		  break;
 
 	  case 1:
 		  if(MotorReadRPM > MotorSetRPM){
-			  duty--;
+			  if(duty>10)
+			  {
+				  if(HAL_GetTick() >= timeset)
+				  {
+			  duty-=5;
+			  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,duty);
+			  timeset += 100;
+				  }
+			  }
+			  else
+			  {
+				  duty = 10;
+			  }
 		  }
 		  else if(MotorReadRPM < MotorSetRPM){
-			  duty++;
+			  if(duty < 1000)
+			  {
+				  if(HAL_GetTick() >= timeset){
+			  duty+=5;
+			  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,duty);
+			  timeset += 100;
+				  }
+			  }
+			  else
+			  {
+				  duty = 999;
+			  }
 		  }
 		  break;
 	  }
