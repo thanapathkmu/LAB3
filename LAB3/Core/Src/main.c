@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#define IC_BUFFER__SIZE 20 //Define size of buffer to get the value from encoder for 20 slot
+#define IC_BUFFER_SIZE 20 //Define size of buffer to get the value from encoder for 20 slot
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,8 +45,9 @@ DMA_HandleTypeDef hdma_tim2_ch1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint32_t InputBuffer[IC_BUFFER__SIZE];
+uint32_t InputBuffer[IC_BUFFER_SIZE];
 float averageInput;
+float MotorReadRPM;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -97,7 +98,7 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start(&htim2); //start Timer channel 2
-  HAL_TIM_IC_Start_DMA(&htim2, TIM_CHANNEL_1 , InputBuffer , IC_BUFFER__SIZE);
+  HAL_TIM_IC_Start_DMA(&htim2, TIM_CHANNEL_1 , InputBuffer , IC_BUFFER_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -107,6 +108,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  static uint32_t timestamp = 0;
+	  if(HAL_GetTick() >= timestamp)
+	  {
+	  CAL_Period();
+	  timestamp = HAL_GetTick() +500;
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -179,7 +186,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 83;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -299,6 +306,23 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+//Define CAL_period
+float CAL_Period()
+{
+	uint32_t currentDMAPointer = IC_BUFFER_SIZE - __HAL_DMA_GET_COUNTER((htim2.hdma[1]));
+	uint32_t lastDMAPointer = (currentDMAPointer-1 + IC_BUFFER_SIZE)%IC_BUFFER_SIZE;
+	uint32_t i = (lastDMAPointer + IC_BUFFER_SIZE - 4)%IC_BUFFER_SIZE ;
+	int32_t sumdiff = 0;
+	while(i != lastDMAPointer)
+	{
+		uint32_t FirstCapture = InputBuffer[i];
+		uint32_t NextCapture = InputBuffer[(i+1)%IC_BUFFER_SIZE];
+		sumdiff += NextCapture-FirstCapture;
+		i = (i+1)%IC_BUFFER_SIZE;
+	}
+	averageInput = abs(sumdiff/5.0);
+	return averageInput;
+}
 /* USER CODE END 4 */
 
 /**
