@@ -112,6 +112,7 @@ int main(void)
 	  if(HAL_GetTick() >= timestamp)
 	  {
 	  CAL_Period();
+	  MotorReadRPM = 60*1/(averageInput*0.000001/768); //RPM
 	  timestamp = HAL_GetTick() +500;
 	  }
   }
