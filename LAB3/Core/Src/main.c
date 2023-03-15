@@ -49,7 +49,11 @@ UART_HandleTypeDef huart2;
 uint32_t InputBuffer[IC_BUFFER_SIZE];
 float averageInput;
 float MotorReadRPM;
+uint32_t MotorSetDuty;
+uint32_t MotorSetRPM;
+uint8_t MotorControlEnable = 0;
 uint32_t duty = 500;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -123,9 +127,25 @@ int main(void)
 	  timestamp = HAL_GetTick() +500;
 	  CAL_Period();
 	  //Read RPM Input Capture
-	  MotorReadRPM = 60*1/(averageInput*0.000001/768); //RPM
+	  MotorReadRPM = (1/(averageInput*12*64*0.000001))*60; //RPM
 	  //PWM Output Compare
 	  __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,duty);
+	  }
+
+	  switch(MotorControlEnable)
+	  {
+	  case 0:
+		  duty = (MotorSetDuty-1)*10;
+		  break;
+
+	  case 1:
+		  if(MotorReadRPM > MotorSetRPM){
+			  duty--;
+		  }
+		  else if(MotorReadRPM < MotorSetRPM){
+			  duty++;
+		  }
+		  break;
 	  }
   }
   /* USER CODE END 3 */
@@ -200,7 +220,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 83;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 1000;
+  htim1.Init.Period = 999;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -274,7 +294,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 83;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 999;
+  htim2.Init.Period = 4294967295;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -408,7 +428,7 @@ float CAL_Period()
 		sumdiff += NextCapture-FirstCapture;
 		i = (i+1)%IC_BUFFER_SIZE;
 	}
-	averageInput = abs(sumdiff/5.0);
+	averageInput = sumdiff/5.0;
 	return averageInput;
 }
 /* USER CODE END 4 */
